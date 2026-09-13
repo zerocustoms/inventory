@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stockroom — Inventory Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --paper:#EDEAE1;
+    --panel:#FFFFFF;
+    --ink:#1E1B16;
+    --ink-soft:#6B6559;
+    --line:#D9D3C4;
+    --stamp:#A33B2E;
+    --tag:#B9812A;
+    --tag-deep:#8F621D;
+    --ok:#3E6B52;
+    --ok-bg:#E4EDE7;
+    --stamp-bg:#F3E1DD;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:transparent;color:var(--ink);}
+  body{
+    font-family:'Inter', system-ui, sans-serif;
+    font-size:15px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:'Space Grotesk', system-ui, sans-serif; margin:0;}
+  .mono{font-family:'JetBrains Mono', ui-monospace, monospace;}
+
+  #app{
+    max-width:520px;
+    margin:0 auto;
+    background:var(--paper);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ---- Header ---- */
+  header{
+    padding:20px 18px 0 18px;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  .brand h1{
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .brand .count{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .subline{
+    color:var(--ink-soft);
+    font-size:13px;
+    margin-top:2px;
+  }
+
+  /* ---- Tabs ---- */
+  nav.tabs{
+    display:flex;
+    gap:2px;
+    margin:16px 18px 0 18px;
+    background:var(--line);
+    border-radius:9px;
+    padding:3px;
+  }
+  nav.tabs button{
+    flex:1;
+    border:none;
+    background:transparent;
+    padding:9px 6px;
+    font-size:13.5px;
+    font-family:'Inter', sans-serif;
+    font-weight:500;
+    color:var(--ink-soft);
+    border-radius:7px;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  nav.tabs button.active{
+    background:var(--panel);
+    color:var(--ink);
+    box-shadow:0 1px 2px rgba(0,0,0,.08);
+  }
+
+  main{
+    flex:1;
+    padding:16px 18px 100px 18px;
+  }
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ---- Search + actions row ---- */
+  .toolrow{
+    display:flex;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .search{
+    flex:1;
+    position:relative;
+  }
+  .search input{
+    width:100%;
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--panel);
+    font-size:14px;
+    color:var(--ink);
+  }
+  .search input:focus{outline:2px solid var(--tag); outline-offset:1px;}
+  .iconbtn{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:8px;
+    width:38px;
+    min-width:38px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .primary-btn{
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    border-radius:8px;
+    padding:10px 16px;
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .primary-btn:active{opacity:.85;}
+  .ghost-btn{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:8px;
+    padding:10px 16px;
+    font-size:14px;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+
+  /* ---- Item cards ---- */
+  .item-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:12px 14px;
+    margin-bottom:10px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .item-card.low{border-left:3px solid var(--stamp);}
+  .item-main{flex:1; min-width:0;}
+  .item-name{
+    font-weight:600;
+    font-size:15px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .item-meta{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin-top:3px;
+    flex-wrap:wrap;
+  }
+  .item-sku{
+    font-size:11.5px;
+    color:var(--ink-soft);
+  }
+  .item-tag{
+    font-size:11px;
+    background:var(--ok-bg);
+    color:var(--ok);
+    padding:2px 7px;
+    border-radius:20px;
+  }
+  .item-tag.loc{
+    background:#EAE7DD;
+    color:var(--ink-soft);
+  }
+  .qty-stepper{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .qty-stepper button{
+    width:26px;height:26px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    font-size:15px;
+    line-height:1;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .qty-num{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:600;
+    font-size:15px;
+    min-width:24px;
+    text-align:center;
+  }
+  .item-actions{display:flex; gap:6px; margin-left:2px;}
+  .item-actions button{
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    color:var(--ink-soft);
+    padding:4px;
+  }
+
+  .empty{
+    text-align:center;
+    padding:48px 20px;
+    color:var(--ink-soft);
+  }
+  .empty h3{color:var(--ink); font-size:16px; margin-bottom:6px;}
+  .empty p{font-size:13.5px; margin:0 0 16px 0;}
+
+  /* ---- Modal / sheet ---- */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(30,27,22,.4);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:50;
+  }
+  .overlay.open{display:flex;}
+  .sheet{
+    background:var(--panel);
+    width:100%;
+    max-width:520px;
+    border-radius:16px 16px 0 0;
+    padding:20px 18px 24px 18px;
+    max-height:88vh;
+    overflow-y:auto;
+  }
+  .sheet h2{font-size:18px; margin-bottom:14px;}
+  .field{margin-bottom:12px;}
+  .field label{
+    display:block;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-bottom:4px;
+  }
+  .field input, .field select{
+    width:100%;
+    padding:9px 11px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+  }
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  .sheet-actions{
+    display:flex;
+    gap:10px;
+    margin-top:6px;
+  }
+  .sheet-actions button{flex:1;}
+
+  /* ---- Scan view ---- */
+  .scan-box{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px;
+    text-align:center;
+  }
+  #video{
+    width:100%;
+    border-radius:8px;
+    background:#000;
+    display:none;
+  }
+  .scan-hint{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-top:10px;
+  }
+  .manual-lookup{
+    margin-top:16px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+  }
+  .manual-lookup label{
+    display:block;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .manual-row{display:flex; gap:8px;}
+  .manual-row input{
+    flex:1;
+    padding:9px 11px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:14px;
+  }
+  .scan-result{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-top:14px;
+  }
+  .scan-result .qty-big{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:38px;
+    font-weight:700;
+    text-align:center;
+    margin:14px 0;
+  }
+  .scan-result .qty-controls{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    align-items:center;
+  }
+  .scan-result .qty-controls button{
+    width:44px;height:44px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--paper);
+    font-size:20px;
+    cursor:pointer;
+  }
+  .status-msg{
+    font-size:13px;
+    padding:9px 12px;
+    border-radius:8px;
+    margin-top:12px;
+  }
+  .status-msg.error{background:var(--stamp-bg); color:var(--stamp);}
+  .status-msg.ok{background:var(--ok-bg); color:var(--ok);}
+
+  /* ---- Labels view ---- */
+  .label-select-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 12px;
+    margin-bottom:8px;
+  }
+  .label-select-row input[type=checkbox]{width:17px; height:17px;}
+  .label-select-row .name{flex:1; font-size:14px; font-weight:500;}
+  .label-select-row .sku{font-size:11.5px; color:var(--ink-soft);}
+
+  #printArea{display:none;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{
+      display:block;
+      position:absolute; top:0; left:0; width:100%;
+    }
+    .label-grid{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:10px;
+    }
+    .label-cell{
+      border:1px dashed #999;
+      padding:8px;
+      text-align:center;
+      break-inside:avoid;
+    }
+    .label-cell .qrbox{display:flex; justify-content:center; margin-bottom:6px;}
+    .label-cell .lname{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12px;}
+    .label-cell .lsku{font-family:'JetBrains Mono',monospace; font-size:10px; color:#555;}
+    .label-cell .lbadge{
+      display:inline-block;
+      margin-top:5px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:9.5px;
+      padding:2px 6px;
+      border-radius:20px;
+      border:1px solid #999;
+    }
+    .label-cell .lbadge.add{color:#3E6B52; border-color:#3E6B52;}
+    .label-cell .lbadge.remove{color:#A33B2E; border-color:#A33B2E;}
+  }
+
+  footer.fab-row{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    display:flex;
+    justify-content:center;
+    padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top, var(--paper) 60%, transparent);
+    pointer-events:none;
+  }
+  footer.fab-row .inner{
+    max-width:520px;
+    width:100%;
+    pointer-events:auto;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand">
+      <h1>Stockroom</h1>
+      <span class="count mono" id="itemCount">0 items</span>
+    </div>
+    <div class="subline">Track stock, scan labels, export anytime</div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="inventory">Inventory</button>
+    <button class="tab-btn" data-tab="scan">Scan</button>
+    <button class="tab-btn" data-tab="labels">Print labels</button>
+  </nav>
+
+  <main>
+    <!-- INVENTORY VIEW -->
+    <section class="view active" id="view-inventory">
+      <div class="toolrow">
+        <div class="search">
+          <input type="text" id="searchInput" placeholder="Search by name, SKU, category…">
+        </div>
+        <button class="iconbtn" id="exportBtn" title="Export CSV">⇩</button>
+      </div>
+      <div id="itemList"></div>
+    </section>
+
+    <!-- SCAN VIEW -->
+    <section class="view" id="view-scan">
+      <div class="scan-box">
+        <video id="video" playsinline muted></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <button class="primary-btn" id="startScanBtn" style="width:100%;">Start camera</button>
+        <div class="scan-hint" id="scanHint">Point the camera at a Stockroom label to look up an item.</div>
+      </div>
+
+      <div class="manual-lookup">
+        <label for="manualCode">Or enter a code manually</label>
+        <div class="manual-row">
+          <input type="text" id="manualCode" placeholder="e.g. INV-4F2A9C">
+          <button class="ghost-btn" id="manualLookupBtn">Find</button>
+        </div>
+      </div>
+
+      <div id="scanResultArea"></div>
+      <div id="scanLog"></div>
+    </section>
+
+    <!-- LABELS VIEW -->
+    <section class="view" id="view-labels">
+      <div class="field-row" style="margin-bottom:10px;">
+        <div class="field">
+          <label for="labelType">Label type</label>
+          <select id="labelType">
+            <option value="lookup">Lookup label (manual +/–)</option>
+            <option value="add">Add-stock label</option>
+            <option value="remove">Remove-stock label</option>
+          </select>
+        </div>
+        <div class="field" id="labelAmountField" style="display:none;">
+          <label for="labelAmount">Amount per scan</label>
+          <input type="number" id="labelAmount" value="1" min="1">
+        </div>
+      </div>
+      <div class="toolrow">
+        <button class="ghost-btn" id="selectAllBtn" style="flex:1;">Select all</button>
+        <button class="primary-btn" id="generateLabelsBtn" style="flex:1;">Print selected</button>
+      </div>
+      <div id="labelSelectList"></div>
+    </section>
+  </main>
+
+  <footer class="fab-row" id="fabRow">
+    <div class="inner">
+      <button class="primary-btn" id="addItemBtn" style="width:100%; padding:13px;">+ Add item</button>
+    </div>
+  </footer>
+
+</div>
+
+<!-- Add/Edit item sheet -->
+<div class="overlay" id="itemOverlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">Add item</h2>
+    <input type="hidden" id="editId">
+    <div class="field">
+      <label for="fName">Item name</label>
+      <input type="text" id="fName" placeholder="e.g. Packing tape, 2in">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fSku">SKU (optional)</label>
+        <input type="text" id="fSku" placeholder="auto-generated if blank">
+      </div>
+      <div class="field">
+        <label for="fQty">Quantity</label>
+        <input type="number" id="fQty" value="0" min="0">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fCategory">Category</label>
+        <input type="text" id="fCategory" placeholder="e.g. Packaging">
+      </div>
+      <div class="field">
+        <label for="fLocation">Location</label>
+        <input type="text" id="fLocation" placeholder="e.g. Shelf B3">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fMin">Low-stock alert below</label>
+      <input type="number" id="fMin" value="0" min="0">
+    </div>
+    <div class="sheet-actions">
+      <button class="ghost-btn" id="cancelSheetBtn">Cancel</button>
+      <button class="primary-btn" id="saveItemBtn">Save item</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden QR render targets for label generation -->
+<div id="qrScratch" style="position:absolute; left:-9999px; top:-9999px;"></div>
+
+<!-- Print area -->
+<div id="printArea">
+  <div class="label-grid" id="labelGrid"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const STORE_KEY = "inventory:items";
+  let items = [];
+  let scanning = false;
+  let stream = null;
+  let scanLoopId = null;
+  let currentScanItem = null;
+
+  // ---------- Storage (standard browser localStorage — works on any host) ----------
+  async function loadItems(){
+    try{
+      const raw = window.localStorage.getItem(STORE_KEY);
+      items = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      items = [];
+    }
+    renderInventory();
+    renderLabelSelect();
+  }
+
+  async function saveItems(){
+    try{
+      window.localStorage.setItem(STORE_KEY, JSON.stringify(items));
+    }catch(e){
+      console.error("Could not save inventory", e);
+    }
+  }
+
+  // ---------- Helpers ----------
+  function genId(){
+    return "INV-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+
+  function findByCode(code){
+    const clean = code.trim().toUpperCase();
+    return items.find(it => it.id.toUpperCase() === clean || (it.sku && it.sku.toUpperCase() === clean));
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, c => ({
+      "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+    }[c]));
+  }
+
+  // ---------- Tabs ----------
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("view-" + btn.dataset.tab).classList.add("active");
+      document.getElementById("fabRow").style.display = btn.dataset.tab === "inventory" ? "flex" : "none";
+      if(btn.dataset.tab !== "scan" && scanning){
+        stopScan();
+      }
+    });
+  });
+
+  // ---------- Render inventory ----------
+  function renderInventory(){
+    const list = document.getElementById("itemList");
+    const q = document.getElementById("searchInput").value.trim().toLowerCase();
+    const filtered = items.filter(it => {
+      if(!q) return true;
+      return (it.name||"").toLowerCase().includes(q)
+        || (it.sku||"").toLowerCase().includes(q)
+        || (it.category||"").toLowerCase().includes(q)
+        || (it.location||"").toLowerCase().includes(q);
+    });
+
+    document.getElementById("itemCount").textContent = items.length + (items.length===1 ? " item" : " items");
+
+    if(filtered.length === 0){
+      list.innerHTML = items.length === 0
+        ? `<div class="empty">
+             <h3>No items yet</h3>
+             <p>Add your first item, then print a QR label for it from the Labels tab.</p>
+           </div>`
+        : `<div class="empty"><h3>No matches</h3><p>Try a different search term.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(it => {
+      const low = it.min > 0 && it.qty <= it.min;
+      return `
+      <div class="item-card ${low ? "low" : ""}" data-id="${it.id}">
+        <div class="item-main">
+          <div class="item-name">${escapeHtml(it.name)}</div>
+          <div class="item-meta">
+            <span class="item-sku mono">${escapeHtml(it.sku || it.id)}</span>
+            ${it.category ? `<span class="item-tag">${escapeHtml(it.category)}</span>` : ""}
+            ${it.location ? `<span class="item-tag loc">${escapeHtml(it.location)}</span>` : ""}
+          </div>
+        </div>
+        <div class="qty-stepper">
+          <button data-action="dec">–</button>
+          <span class="qty-num">${it.qty}</span>
+          <button data-action="inc">+</button>
+        </div>
+        <div class="item-actions">
+          <button data-action="edit" title="Edit">✎</button>
+          <button data-action="delete" title="Delete">✕</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  document.getElementById("searchInput").addEventListener("input", renderInventory);
+
+  document.getElementById("itemList").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-action]");
+    if(!btn) return;
+    const card = e.target.closest(".item-card");
+    const id = card.dataset.id;
+    const item = items.find(i => i.id === id);
+    if(!item) return;
+
+    if(btn.dataset.action === "inc"){
+      item.qty += 1; saveItems(); renderInventory();
+    } else if(btn.dataset.action === "dec"){
+      item.qty = Math.max(0, item.qty - 1); saveItems(); renderInventory();
+    } else if(btn.dataset.action === "edit"){
+      openSheet(item);
+    } else if(btn.dataset.action === "delete"){
+      if(confirm(`Delete "${item.name}"? This can't be undone.`)){
+        items = items.filter(i => i.id !== id);
+        saveItems(); renderInventory(); renderLabelSelect();
+      }
+    }
+  });
+
+  // ---------- Add / Edit sheet ----------
+  const overlay = document.getElementById("itemOverlay");
+
+  function openSheet(item){
+    document.getElementById("sheetTitle").textContent = item ? "Edit item" : "Add item";
+    document.getElementById("editId").value = item ? item.id : "";
+    document.getElementById("fName").value = item ? item.name : "";
+    document.getElementById("fSku").value = item ? (item.sku || "") : "";
+    document.getElementById("fQty").value = item ? item.qty : 0;
+    document.getElementById("fCategory").value = item ? (item.category || "") : "";
+    document.getElementById("fLocation").value = item ? (item.location || "") : "";
+    document.getElementById("fMin").value = item ? (item.min || 0) : 0;
+    overlay.classList.add("open");
+    document.getElementById("fName").focus();
+  }
+  function closeSheet(){ overlay.classList.remove("open"); }
+
+  document.getElementById("addItemBtn").addEventListener("click", () => openSheet(null));
+  document.getElementById("cancelSheetBtn").addEventListener("click", closeSheet);
+  overlay.addEventListener("click", (e) => { if(e.target === overlay) closeSheet(); });
+
+  document.getElementById("saveItemBtn").addEventListener("click", () => {
+    const name = document.getElementById("fName").value.trim();
+    if(!name){ alert("Give the item a name first."); return; }
+    const editId = document.getElementById("editId").value;
+    const qty = Math.max(0, parseInt(document.getElementById("fQty").value, 10) || 0);
+    const min = Math.max(0, parseInt(document.getElementById("fMin").value, 10) || 0);
+    const sku = document.getElementById("fSku").value.trim();
+    const category = document.getElementById("fCategory").value.trim();
+    const location = document.getElementById("fLocation").value.trim();
+
+    if(editId){
+      const item = items.find(i => i.id === editId);
+      Object.assign(item, { name, sku, qty, category, location, min });
+    } else {
+      items.push({ id: genId(), name, sku, qty, category, location, min });
+    }
+    saveItems();
+    renderInventory();
+    renderLabelSelect();
+    closeSheet();
+  });
+
+  // ---------- CSV export ----------
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    if(items.length === 0){ alert("No items to export yet."); return; }
+    const header = ["ID","Name","SKU","Quantity","Category","Location","Low Stock Alert"];
+    const rows = items.map(it => [
+      it.id, it.name, it.sku || "", it.qty, it.category || "", it.location || "", it.min || 0
+    ]);
+    const csv = [header, ...rows].map(r =>
+      r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")
+    ).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "stockroom-inventory.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  // ---------- Scanning ----------
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+
+  async function startScan(){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = stream;
+      video.style.display = "block";
+      await video.play();
+      scanning = true;
+      document.getElementById("startScanBtn").textContent = "Stop camera";
+      document.getElementById("scanHint").textContent = "Scanning… Add/Remove labels apply instantly and the camera keeps running — just move to the next item. Lookup labels pause here for a manual adjustment.";
+      scanLoop();
+    }catch(e){
+      showScanStatus("error", "Couldn't access the camera. This can happen if camera access isn't permitted in this view — try the manual code entry below instead.");
+    }
+  }
+
+  function stopScan(){
+    scanning = false;
+    if(scanLoopId) cancelAnimationFrame(scanLoopId);
+    if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+    video.style.display = "none";
+    document.getElementById("startScanBtn").textContent = "Start camera";
+    document.getElementById("scanHint").textContent = "Point the camera at a Stockroom label to look up an item.";
+  }
+
+  // Tracks the last time each raw QR payload was actioned, so holding a
+  // label in front of the camera for multiple frames doesn't apply it
+  // over and over. Keyed by the exact scanned string.
+  const scanCooldowns = new Map();
+  const SCAN_COOLDOWN_MS = 1800;
+  let scanLogEntries = [];
+
+  function scanLoop(){
+    if(!scanning) return;
+    if(video.readyState === video.HAVE_ENOUGH_DATA){
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if(code && code.data){
+        processScannedCode(code.data);
+      }
+    }
+    if(scanning) scanLoopId = requestAnimationFrame(scanLoop);
+  }
+
+  document.getElementById("startScanBtn").addEventListener("click", () => {
+    scanning ? stopScan() : startScan();
+  });
+
+  // Parses either a plain lookup code ("STOCKROOM:<code>") or an action
+  // code ("STOCKROOM:ADD:<amount>:<code>" / "STOCKROOM:REMOVE:<amount>:<code>").
+  function parseStockroomCode(raw){
+    const body = raw.replace(/^STOCKROOM:/, "");
+    const parts = body.split(":");
+    if(parts.length === 3 && (parts[0] === "ADD" || parts[0] === "REMOVE")){
+      return {
+        type: parts[0].toLowerCase(),
+        amount: Math.max(1, parseInt(parts[1], 10) || 1),
+        code: parts[2]
+      };
+    }
+    return { type: "lookup", amount: 0, code: body };
+  }
+
+  function processScannedCode(raw){
+    const parsed = parseStockroomCode(raw);
+
+    if(parsed.type === "add" || parsed.type === "remove"){
+      const now = Date.now();
+      const last = scanCooldowns.get(raw) || 0;
+      if(now - last < SCAN_COOLDOWN_MS) return; // same label still in view, ignore
+      scanCooldowns.set(raw, now);
+
+      const item = findByCode(parsed.code);
+      if(!item){
+        pushLog(`No item matches this label (${escapeHtml(parsed.code)}).`, "error");
+        return;
+      }
+      if(parsed.type === "add"){
+        item.qty += parsed.amount;
+      } else {
+        item.qty = Math.max(0, item.qty - parsed.amount);
+      }
+      saveItems();
+      renderInventory();
+      const sign = parsed.type === "add" ? "+" : "−";
+      pushLog(`${sign}${parsed.amount} · ${escapeHtml(item.name)} → now ${item.qty}`, "ok");
+      return;
+    }
+
+    // Plain lookup label: pause scanning and hand control to the person
+    // for a manual adjustment, same as before.
+    stopScan();
+    const item = findByCode(parsed.code);
+    if(!item){
+      showScanStatus("error", `No item matches code "${escapeHtml(parsed.code)}".`);
+      return;
+    }
+    showScanResult(item);
+  }
+
+  function pushLog(text, type){
+    scanLogEntries.unshift({ text, type });
+    scanLogEntries = scanLogEntries.slice(0, 8);
+    renderScanLog();
+  }
+
+  function renderScanLog(){
+    const el = document.getElementById("scanLog");
+    if(!el) return;
+    el.innerHTML = scanLogEntries.map(e =>
+      `<div class="status-msg ${e.type}" style="margin-top:8px;">${e.text}</div>`
+    ).join("");
+  }
+
+  document.getElementById("manualLookupBtn").addEventListener("click", () => {
+    const code = document.getElementById("manualCode").value.trim();
+    if(!code) return;
+    processScannedCode(code);
+  });
+  document.getElementById("manualCode").addEventListener("keydown", (e) => {
+    if(e.key === "Enter") document.getElementById("manualLookupBtn").click();
+  });
+
+  function showScanStatus(type, msg){
+    document.getElementById("scanResultArea").innerHTML =
+      `<div class="status-msg ${type}">${msg}</div>`;
+  }
+
+  function showScanResult(item){
+    currentScanItem = item;
+    renderScanResult();
+  }
+
+  function renderScanResult(){
+    const item = currentScanItem;
+    if(!item) return;
+    document.getElementById("scanResultArea").innerHTML = `
+      <div class="scan-result">
+        <div class="item-name" style="font-size:16px;">${escapeHtml(item.name)}</div>
+        <div class="item-meta" style="margin-top:4px;">
+          <span class="item-sku mono">${escapeHtml(item.sku || item.id)}</span>
+          ${item.location ? `<span class="item-tag loc">${escapeHtml(item.location)}</span>` : ""}
+        </div>
+        <div class="qty-big">${item.qty}</div>
+        <div class="qty-controls">
+          <button data-action="dec">–</button>
+          <button data-action="inc">+</button>
+        </div>
+      </div>
+    `;
+    document.querySelector(".scan-result").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action]");
+      if(!btn) return;
+      if(btn.dataset.action === "inc") item.qty += 1;
+      if(btn.dataset.action === "dec") item.qty = Math.max(0, item.qty - 1);
+      saveItems();
+      renderInventory();
+      renderScanResult();
+    });
+  }
+
+  // ---------- Labels ----------
+  function renderLabelSelect(){
+    const list = document.getElementById("labelSelectList");
+    if(items.length === 0){
+      list.innerHTML = `<div class="empty"><h3>No items to label</h3><p>Add items from the Inventory tab first.</p></div>`;
+      return;
+    }
+    list.innerHTML = items.map(it => `
+      <label class="label-select-row">
+        <input type="checkbox" value="${it.id}" class="label-check">
+        <span class="name">${escapeHtml(it.name)}</span>
+        <span class="sku mono">${escapeHtml(it.sku || it.id)}</span>
+      </label>
+    `).join("");
+  }
+
+  document.getElementById("labelType").addEventListener("change", (e) => {
+    document.getElementById("labelAmountField").style.display =
+      e.target.value === "lookup" ? "none" : "block";
+  });
+
+  document.getElementById("selectAllBtn").addEventListener("click", () => {
+    const boxes = document.querySelectorAll(".label-check");
+    const allChecked = Array.from(boxes).every(b => b.checked);
+    boxes.forEach(b => b.checked = !allChecked);
+  });
+
+  document.getElementById("generateLabelsBtn").addEventListener("click", () => {
+    const ids = Array.from(document.querySelectorAll(".label-check:checked")).map(b => b.value);
+    if(ids.length === 0){ alert("Select at least one item to print."); return; }
+
+    const scratch = document.getElementById("qrScratch");
+    scratch.innerHTML = "";
+    const grid = document.getElementById("labelGrid");
+    grid.innerHTML = "";
+
+    const labelType = document.getElementById("labelType").value; // lookup | add | remove
+    const labelAmount = Math.max(1, parseInt(document.getElementById("labelAmount").value, 10) || 1);
+
+    ids.forEach(id => {
+      const item = items.find(i => i.id === id);
+      if(!item) return;
+
+      const code = item.sku || item.id;
+      let payload = "STOCKROOM:" + code;
+      let badgeHtml = "";
+      if(labelType === "add"){
+        payload = `STOCKROOM:ADD:${labelAmount}:${code}`;
+        badgeHtml = `<div class="lbadge add">+${labelAmount} per scan</div>`;
+      } else if(labelType === "remove"){
+        payload = `STOCKROOM:REMOVE:${labelAmount}:${code}`;
+        badgeHtml = `<div class="lbadge remove">−${labelAmount} per scan</div>`;
+      }
+
+      // qrcode-generator builds the matrix in pure JS and hands back a
+      // ready-made data URL — no canvas, no hidden conversion step,
+      // so it renders reliably regardless of browser or host.
+      let dataUrl = "";
+      try{
+        const qr = qrcode(0, "M");
+        qr.addData(payload);
+        qr.make();
+        dataUrl = qr.createDataURL(6, 4);
+      }catch(e){
+        console.error("QR generation failed for", item.id, e);
+      }
+
+      const cell = document.createElement("div");
+      cell.className = "label-cell";
+      const imgHtml = dataUrl ? `<img src="${dataUrl}" width="110" height="110" alt="QR code for ${escapeHtml(code)}">` : `<div style="font-size:10px;color:#a33b2e;">QR failed to render</div>`;
+      cell.innerHTML = `
+        <div class="qrbox">${imgHtml}</div>
+        <div class="lname">${escapeHtml(item.name)}</div>
+        <div class="lsku">${escapeHtml(code)}</div>
+        ${badgeHtml}
+      `;
+      grid.appendChild(cell);
+    });
+
+    setTimeout(() => window.print(), 150);
+  });
+
+  // ---------- Init ----------
+  loadItems();
+})();
+</script>
+</body>
+</html>
